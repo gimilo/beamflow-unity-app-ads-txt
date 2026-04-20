@@ -1,0 +1,26 @@
+{
+  "name": "co.beamflow.app-ads-txt",
+  "version": "1.0.0",
+  "displayName": "BeamFlow App-Ads.txt Manager",
+  "description": "Auto-detect your ad SDKs and generate a verified app-ads.txt file. Supports AdMob, AppLovin MAX, Unity Ads, ironSource, and 10+ networks. Powered by BeamFlow.",
+  "unity": "2021.3",
+  "unityRelease": "0f1",
+  "keywords": [
+    "app-ads.txt",
+    "ads.txt",
+    "admob",
+    "applovin",
+    "monetization",
+    "advertising",
+    "ad-ops"
+  ],
+  "author": {
+    "name": "BeamFlow",
+    "url": "https://beamflow.co"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beamflow/unity-app-ads-txt.git"
+  }
+}
