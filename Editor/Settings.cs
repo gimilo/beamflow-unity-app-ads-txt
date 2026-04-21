@@ -71,6 +71,24 @@ namespace BeamFlow.AppAdsTxt
         }
 
         /// <summary>
+        /// Get the set of managed lines the user has explicitly excluded.
+        /// </summary>
+        public static HashSet<string> GetExcludedManagedLines()
+        {
+            var raw = EditorPrefs.GetString(KeyPrefix + "ExcludedManagedLines", "");
+            if (string.IsNullOrEmpty(raw)) return new HashSet<string>();
+            return new HashSet<string>(raw.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        /// <summary>
+        /// Save the set of excluded managed lines.
+        /// </summary>
+        public static void SetExcludedManagedLines(IEnumerable<string> lines)
+        {
+            EditorPrefs.SetString(KeyPrefix + "ExcludedManagedLines", string.Join("\n", lines));
+        }
+
+        /// <summary>
         /// Get all network publisher IDs as a dictionary.
         /// Falls back to the main PublisherId for AdMob.
         /// </summary>

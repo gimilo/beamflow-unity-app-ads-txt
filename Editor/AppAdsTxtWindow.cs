@@ -17,7 +17,9 @@ namespace BeamFlow.AppAdsTxt
         private Dictionary<string, bool> _enabledNetworks = new Dictionary<string, bool>();
         private Dictionary<string, string> _networkPubIds = new Dictionary<string, string>();
         private List<string> _managedLines = new List<string>();
+        private HashSet<string> _excludedManagedLines = new HashSet<string>();
         private bool _managedLinesLoaded;
+        private bool _showManagedSection = true;
         private string _generatedContent = "";
         private int _lineCount;
         private Vector2 _scrollPos;
@@ -47,6 +49,7 @@ namespace BeamFlow.AppAdsTxt
         private void LoadCachedManagedLines()
         {
             _managedLines = Settings.GetCachedManagedLines();
+            _excludedManagedLines = Settings.GetExcludedManagedLines();
             if (_managedLines.Count > 0)
             {
                 _managedLinesLoaded = true;
@@ -95,7 +98,12 @@ namespace BeamFlow.AppAdsTxt
                 .Select(kv => kv.Key)
                 .ToList();
 
-            _generatedContent = LineGenerator.Generate(enabled, _networkPubIds, _managedLines);
+            // Filter out managed lines the user has excluded
+            var activeManagedLines = _managedLines
+                .Where(l => !_excludedManagedLines.Contains(l))
+                .ToList();
+
+            _generatedContent = LineGenerator.Generate(enabled, _networkPubIds, activeManagedLines);
             _lineCount = LineGenerator.CountDataLines(_generatedContent);
         }
 
@@ -108,6 +116,8 @@ namespace BeamFlow.AppAdsTxt
             DrawNetworkSection();
             EditorGUILayout.Space(10);
             DrawPublisherIdSection();
+            EditorGUILayout.Space(10);
+            DrawRecommendedLinesSection();
             EditorGUILayout.Space(10);
             DrawOutputSection();
             EditorGUILayout.Space(10);
@@ -236,6 +246,86 @@ namespace BeamFlow.AppAdsTxt
                 }
                 EditorGUI.indentLevel--;
             }
+        }
+
+        private Vector2 _recScrollPos;
+
+        private void DrawRecommendedLinesSection()
+        {
+            if (_managedLines.Count == 0)
+            {
+                // Only show section if there are managed lines available
+                return;
+            }
+
+            var activeCount = _managedLines.Count - _excludedManagedLines.Count;
+
+            EditorGUILayout.BeginHorizontal();
+            var prevColor = GUI.color;
+            GUI.color = new Color(0.65f, 0.95f, 0.48f); // lime
+            EditorGUILayout.LabelField("★", GUILayout.Width(15));
+            GUI.color = prevColor;
+            EditorGUILayout.LabelField(
+                $"BeamFlow Recommended Lines ({activeCount}/{_managedLines.Count} included)",
+                EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.HelpBox(
+                "Curated by BeamFlow's ad operations team to maximize your demand and revenue. " +
+                "All lines are checked by default. Uncheck any line to exclude it from your app-ads.txt.",
+                MessageType.Info);
+
+            // Select all / deselect all buttons
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Include All", GUILayout.Width(90), GUILayout.Height(22)))
+            {
+                _excludedManagedLines.Clear();
+                Settings.SetExcludedManagedLines(_excludedManagedLines);
+                RegenerateContent();
+            }
+            if (GUILayout.Button("Exclude All", GUILayout.Width(90), GUILayout.Height(22)))
+            {
+                _excludedManagedLines = new HashSet<string>(_managedLines);
+                Settings.SetExcludedManagedLines(_excludedManagedLines);
+                RegenerateContent();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(4);
+
+            // Scrollable list of lines with checkboxes
+            var height = Mathf.Min(180, _managedLines.Count * 22 + 10);
+            _recScrollPos = EditorGUILayout.BeginScrollView(
+                _recScrollPos,
+                EditorStyles.helpBox,
+                GUILayout.Height(height));
+
+            foreach (var line in _managedLines)
+            {
+                EditorGUILayout.BeginHorizontal();
+
+                var wasIncluded = !_excludedManagedLines.Contains(line);
+                var isIncluded = EditorGUILayout.Toggle(wasIncluded, GUILayout.Width(18));
+
+                if (isIncluded != wasIncluded)
+                {
+                    if (isIncluded)
+                        _excludedManagedLines.Remove(line);
+                    else
+                        _excludedManagedLines.Add(line);
+                    Settings.SetExcludedManagedLines(_excludedManagedLines);
+                    RegenerateContent();
+                }
+
+                // Dim the text if excluded
+                if (!isIncluded) GUI.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+                EditorGUILayout.SelectableLabel(line, EditorStyles.miniLabel, GUILayout.Height(18));
+                GUI.color = prevColor;
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawOutputSection()

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.3] - 2026-04-21
+
+### Added
+- "BeamFlow Recommended Lines" section with checkboxes (checked by default)
+  - Curated by BeamFlow's ad operations team to maximize revenue
+  - Each line has an individual checkbox to include/exclude
+  - Include All / Exclude All bulk toggles
+  - Exclusions saved per-developer in EditorPrefs
+  - Dimmed display for excluded lines
+- Live counter: "BeamFlow Recommended Lines (N/M included)"
+
 ## [1.0.2] - 2026-04-21
 
 ### Added
