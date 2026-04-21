@@ -113,6 +113,8 @@ namespace BeamFlow.AppAdsTxt
             EditorGUILayout.Space(10);
             DrawActionButtons();
             EditorGUILayout.Space(10);
+            DrawHostingSection();
+            EditorGUILayout.Space(10);
             DrawVerificationSection();
             EditorGUILayout.Space(15);
             DrawFooter();
@@ -292,6 +294,117 @@ namespace BeamFlow.AppAdsTxt
             {
                 EditorGUILayout.HelpBox(_statusMessage, MessageType.Info);
             }
+        }
+
+        private bool _showHostingHelp = true;
+        private int _hostingScenario; // 0 = with website, 1 = without website
+
+        private void DrawHostingSection()
+        {
+            EditorGUILayout.LabelField("Where to put your app-ads.txt", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Your app-ads.txt must be hosted on a website. Ad networks crawl the 'Developer Website' (Play Store) or 'Marketing URL' (App Store) field of your app listing. Below are two ways to do this.",
+                MessageType.Info);
+
+            // Scenario tabs
+            EditorGUILayout.BeginHorizontal();
+            var prevBg = GUI.backgroundColor;
+
+            GUI.backgroundColor = _hostingScenario == 0 ? new Color(0.65f, 0.95f, 0.48f) : prevBg;
+            if (GUILayout.Button("Option A: I have a website", GUILayout.Height(28)))
+                _hostingScenario = 0;
+
+            GUI.backgroundColor = _hostingScenario == 1 ? new Color(0.65f, 0.95f, 0.48f) : prevBg;
+            if (GUILayout.Button("Option B: I don't have a website", GUILayout.Height(28)))
+                _hostingScenario = 1;
+
+            GUI.backgroundColor = prevBg;
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(8);
+
+            if (_hostingScenario == 0)
+            {
+                DrawScenarioA();
+            }
+            else
+            {
+                DrawScenarioB();
+            }
+        }
+
+        private void DrawScenarioA()
+        {
+            EditorGUILayout.LabelField("Option A: Redirect from your website to BeamFlow", EditorStyles.boldLabel);
+
+            EditorGUILayout.HelpBox(
+                "1. Keep your website in the store listing (e.g., mygame.com)\n" +
+                "2. Set up a 301 redirect from yourdomain.com/app-ads.txt to your BeamFlow hosted URL\n" +
+                "3. BeamFlow serves the file, ad networks follow the redirect\n" +
+                "4. No app update required",
+                MessageType.None);
+
+            EditorGUILayout.Space(5);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Host on BeamFlow (free)", GUILayout.Height(32)))
+            {
+                OpenHostOnBeamFlow();
+            }
+            if (GUILayout.Button("Redirect setup guide", GUILayout.Height(32)))
+            {
+                Application.OpenURL("https://beamflow.co/library/how-to-create-an-adstxt-file-step-by-step");
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Common redirect examples:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.SelectableLabel(
+                "# Apache .htaccess:\nRedirect 301 /app-ads.txt https://yourname.beamflow.co/app-ads.txt\n\n" +
+                "# Nginx:\nlocation = /app-ads.txt { return 301 https://yourname.beamflow.co/app-ads.txt; }\n\n" +
+                "# Cloudflare Page Rule: yourdomain.com/app-ads.txt -> Forwarding URL (301)",
+                EditorStyles.textArea,
+                GUILayout.Height(90));
+        }
+
+        private void DrawScenarioB()
+        {
+            EditorGUILayout.LabelField("Option B: Use BeamFlow as your developer website", EditorStyles.boldLabel);
+
+            EditorGUILayout.HelpBox(
+                "1. BeamFlow gives you a free subdomain (e.g., mygame.beamflow.co)\n" +
+                "2. Update your Play Store 'Website' or App Store 'Marketing URL' to that BeamFlow URL\n" +
+                "3. Ad networks crawl mygame.beamflow.co/app-ads.txt directly\n" +
+                "4. No redirect, no website hosting needed\n\n" +
+                "This is the same pattern Google recommends with Firebase Hosting.",
+                MessageType.None);
+
+            EditorGUILayout.Space(5);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Get Free Subdomain on BeamFlow", GUILayout.Height(32)))
+            {
+                OpenHostOnBeamFlow();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Update your store listing:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("• Google Play: Store presence > Store settings > Store listing contact details > Website", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("• App Store: App Information > Marketing URL (no binary resubmission needed)", EditorStyles.miniLabel);
+        }
+
+        private void OpenHostOnBeamFlow()
+        {
+            // Copy the generated content first so the user can paste it in the wizard
+            EditorGUIUtility.systemCopyBuffer = _generatedContent;
+
+            // Open BeamFlow /host wizard pre-configured for mobile app hosting
+            var url = "https://beamflow.co/host?source=unity-plugin&type=app";
+            Application.OpenURL(url);
+
+            _statusMessage = "Your app-ads.txt content was copied to clipboard. Paste it in the BeamFlow hosting wizard.";
+            BeamFlowApi.SendTelemetry("host_clicked", Settings.DeveloperWebsite);
         }
 
         private void DrawVerificationSection()

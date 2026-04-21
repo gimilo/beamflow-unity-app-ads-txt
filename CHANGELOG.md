@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.2] - 2026-04-21
+
+### Added
+- "Where to put your app-ads.txt" section with two clear options:
+  - Option A: Redirect from developer's own website to BeamFlow
+  - Option B: Use BeamFlow subdomain as the store-listed website
+- "Host on BeamFlow" button — deep-links to /host wizard with mobile app pre-selected
+- Copy example redirect rules (Apache, Nginx, Cloudflare)
+- Store listing update instructions (Google Play + App Store)
+
 ## [1.0.1] - 2026-04-21
 
 ### Added
