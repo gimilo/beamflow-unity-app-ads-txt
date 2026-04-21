@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -47,6 +48,26 @@ namespace BeamFlow.AppAdsTxt
         public static void SetNetworkPublisherId(string networkId, string pubId)
         {
             EditorPrefs.SetString(KeyPrefix + "NetPubId_" + networkId, pubId);
+        }
+
+        /// <summary>
+        /// Get cached managed lines from BeamFlow (survives offline).
+        /// Stored as newline-separated string in EditorPrefs.
+        /// </summary>
+        public static List<string> GetCachedManagedLines()
+        {
+            var raw = EditorPrefs.GetString(KeyPrefix + "ManagedLinesCache", "");
+            if (string.IsNullOrEmpty(raw)) return new List<string>();
+            return new List<string>(raw.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        /// <summary>
+        /// Cache managed lines from the BeamFlow API.
+        /// </summary>
+        public static void SetCachedManagedLines(List<string> lines)
+        {
+            EditorPrefs.SetString(KeyPrefix + "ManagedLinesCache", string.Join("\n", lines));
+            EditorPrefs.SetInt(KeyPrefix + "ManagedLinesCacheTs", (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds);
         }
 
         /// <summary>

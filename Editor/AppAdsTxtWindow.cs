@@ -16,6 +16,8 @@ namespace BeamFlow.AppAdsTxt
         private List<SdkDetector.DetectedSdk> _detectedSdks;
         private Dictionary<string, bool> _enabledNetworks = new Dictionary<string, bool>();
         private Dictionary<string, string> _networkPubIds = new Dictionary<string, string>();
+        private List<string> _managedLines = new List<string>();
+        private bool _managedLinesLoaded;
         private string _generatedContent = "";
         private int _lineCount;
         private Vector2 _scrollPos;
@@ -37,7 +39,32 @@ namespace BeamFlow.AppAdsTxt
         private void OnEnable()
         {
             DetectSdks();
+            LoadCachedManagedLines();
+            RefreshManagedLinesAsync();
             BeamFlowApi.SendTelemetry("tool_opened", Settings.DeveloperWebsite);
+        }
+
+        private void LoadCachedManagedLines()
+        {
+            _managedLines = Settings.GetCachedManagedLines();
+            if (_managedLines.Count > 0)
+            {
+                _managedLinesLoaded = true;
+                RegenerateContent();
+            }
+        }
+
+        private async void RefreshManagedLinesAsync()
+        {
+            var lines = await BeamFlowApi.GetManagedLines(Settings.ApiKey);
+            if (lines != null && lines.Count > 0)
+            {
+                _managedLines = lines;
+                Settings.SetCachedManagedLines(lines);
+                _managedLinesLoaded = true;
+                RegenerateContent();
+                Repaint();
+            }
         }
 
         private void DetectSdks()
@@ -68,7 +95,7 @@ namespace BeamFlow.AppAdsTxt
                 .Select(kv => kv.Key)
                 .ToList();
 
-            _generatedContent = LineGenerator.Generate(enabled, _networkPubIds);
+            _generatedContent = LineGenerator.Generate(enabled, _networkPubIds, _managedLines);
             _lineCount = LineGenerator.CountDataLines(_generatedContent);
         }
 
@@ -213,6 +240,13 @@ namespace BeamFlow.AppAdsTxt
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField($"Generated app-ads.txt ({_lineCount} lines)", EditorStyles.boldLabel);
+            if (_managedLinesLoaded && _managedLines.Count > 0)
+            {
+                var prevColor = GUI.color;
+                GUI.color = new Color(0.65f, 0.95f, 0.48f); // lime
+                EditorGUILayout.LabelField($"+ {_managedLines.Count} BeamFlow managed lines", EditorStyles.miniBoldLabel);
+                GUI.color = prevColor;
+            }
             EditorGUILayout.EndHorizontal();
 
             _outputScrollPos = EditorGUILayout.BeginScrollView(

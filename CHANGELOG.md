@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.1] - 2026-04-21
+
+### Added
+- BeamFlow managed lines: admin-curated ad network lines are automatically
+  appended to the generated app-ads.txt (no user action needed)
+- Managed lines cached in EditorPrefs for offline use
+- Visual indicator when managed lines are active
+
+### Fixed
+- Added .meta files for Unity package (required when installed via Git URL)
+
 ## [1.0.0] - 2026-04-20
 
 ### Added

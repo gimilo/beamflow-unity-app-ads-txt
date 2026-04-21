@@ -22,7 +22,7 @@ namespace BeamFlow.AppAdsTxt
 
         static BeamFlowApi()
         {
-            Client.DefaultRequestHeaders.Add("User-Agent", "BeamFlow-Unity-Plugin/1.0.0");
+            Client.DefaultRequestHeaders.Add("User-Agent", "BeamFlow-Unity-Plugin/1.0.1");
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace BeamFlow.AppAdsTxt
         {
             try
             {
-                var body = $"{{\"event\":\"{eventType}\",\"domain\":\"{domain}\",\"plugin_version\":\"1.0.0\",\"wp_version\":\"Unity {Application.unityVersion}\"}}";
+                var body = $"{{\"event\":\"{eventType}\",\"domain\":\"{domain}\",\"plugin_version\":\"1.0.1\",\"wp_version\":\"Unity {Application.unityVersion}\"}}";
                 var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
                 await Client.PostAsync($"{BaseUrl}/plugin/telemetry", content);
             }
