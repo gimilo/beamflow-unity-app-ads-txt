@@ -203,7 +203,7 @@ namespace BeamFlow.AppAdsTxt
             }
             catch
             {
-                // Silently fail — manifest parse error shouldn't break the tool
+                // Silently fail: manifest parse error shouldn't break the tool
             }
 
             return packages;

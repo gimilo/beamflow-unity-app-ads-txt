@@ -13,7 +13,7 @@ namespace BeamFlow.AppAdsTxt
     /// </summary>
     public static class BeamFlowApi
     {
-        public const string PluginVersion = "1.0.5";
+        public const string PluginVersion = "1.0.6";
         private const string BaseUrl = "https://beamflow.co/api/v1";
         private const int TimeoutSeconds = 10;
         private const int MaxManagedLines = 200;
@@ -133,7 +133,7 @@ namespace BeamFlow.AppAdsTxt
             }
             catch
             {
-                // Silently fail — telemetry should never block the user
+                // Silently fail: telemetry should never block the user
             }
         }
 

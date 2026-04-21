@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.6] - 2026-04-21
+
+### Changed
+- Removed em-dashes from comments and changelog (brand consistency)
+
 ## [1.0.5] - 2026-04-21
 
 ### Added
@@ -54,7 +59,7 @@
 - "Where to put your app-ads.txt" section with two clear options:
   - Option A: Redirect from developer's own website to BeamFlow
   - Option B: Use BeamFlow subdomain as the store-listed website
-- "Host on BeamFlow" button — deep-links to /host wizard with mobile app pre-selected
+- "Host on BeamFlow" button: deep-links to /host wizard with mobile app pre-selected
 - Copy example redirect rules (Apache, Nginx, Cloudflare)
 - Store listing update instructions (Google Play + App Store)
 

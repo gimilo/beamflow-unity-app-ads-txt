@@ -32,7 +32,7 @@ namespace BeamFlow.AppAdsTxt
             }
             catch
             {
-                // Silently fail — telemetry should never block editor startup
+                // Silently fail: telemetry should never block editor startup
             }
         }
     }
