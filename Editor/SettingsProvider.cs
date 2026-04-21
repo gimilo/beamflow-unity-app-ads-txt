@@ -41,7 +41,7 @@ namespace BeamFlow.AppAdsTxt
             EditorGUILayout.LabelField("Developer Website", EditorStyles.miniBoldLabel);
             var website = EditorGUILayout.TextField(Settings.DeveloperWebsite);
             if (website != Settings.DeveloperWebsite)
-                Settings.DeveloperWebsite = website;
+                Settings.DeveloperWebsite = BeamFlowApi.NormalizeDomain(website);
             EditorGUILayout.HelpBox(
                 "The domain where your app-ads.txt will be hosted. Must match the website URL in your App Store / Play Store listing.",
                 MessageType.Info);
@@ -53,7 +53,8 @@ namespace BeamFlow.AppAdsTxt
             if (apiKey != Settings.ApiKey)
                 Settings.ApiKey = apiKey;
             EditorGUILayout.HelpBox(
-                "Optional. Connect your BeamFlow account for sellers.json verification. Get a free API key at beamflow.co/developers",
+                "Optional. Connect your BeamFlow account for sellers.json verification. Get a free API key at beamflow.co/developers.\n\n" +
+                "Note: Stored in Unity EditorPrefs (per-machine, unencrypted, shared across projects). Do not share your editor preferences.",
                 MessageType.Info);
 
             EditorGUILayout.Space(15);

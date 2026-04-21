@@ -29,11 +29,16 @@ namespace BeamFlow.AppAdsTxt
         public static IEnumerable<string> GetAllNetworkIds() => Templates.Keys;
 
         /// <summary>
-        /// Check if a network requires a publisher ID input.
+        /// Check if a network requires a publisher ID input (its template has {PUBLISHER_ID}).
         /// </summary>
         public static bool RequiresPublisherId(string networkId)
         {
-            return networkId == "admob";
+            if (!Templates.TryGetValue(networkId, out var lines)) return false;
+            foreach (var line in lines)
+            {
+                if (line.Contains("{PUBLISHER_ID}")) return true;
+            }
+            return false;
         }
 
         // Built-in templates per network.

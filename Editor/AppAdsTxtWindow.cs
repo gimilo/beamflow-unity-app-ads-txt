@@ -7,6 +7,18 @@ using UnityEngine;
 
 namespace BeamFlow.AppAdsTxt
 {
+    internal static class DictExtensions
+    {
+        /// <summary>
+        /// Unity 2021.3 uses .NET Standard 2.0 which lacks Dictionary.GetValueOrDefault.
+        /// This is a compatible replacement.
+        /// </summary>
+        public static TValue GetOrDefault<TKey, TValue>(this Dictionary<TKey, TValue> dict, TKey key, TValue defaultValue = default)
+        {
+            return dict != null && dict.TryGetValue(key, out var v) ? v : defaultValue;
+        }
+    }
+
     /// <summary>
     /// Main editor window for BeamFlow App-Ads.txt Manager.
     /// Accessible via Window > BeamFlow > App-Ads.txt Manager.
@@ -59,14 +71,23 @@ namespace BeamFlow.AppAdsTxt
 
         private async void RefreshManagedLinesAsync()
         {
-            var lines = await BeamFlowApi.GetManagedLines(Settings.ApiKey);
-            if (lines != null && lines.Count > 0)
+            try
             {
-                _managedLines = lines;
-                Settings.SetCachedManagedLines(lines);
-                _managedLinesLoaded = true;
-                RegenerateContent();
-                Repaint();
+                var lines = await BeamFlowApi.GetManagedLines(Settings.ApiKey);
+                // Window may have been closed during the await
+                if (this == null) return;
+                if (lines != null && lines.Count > 0)
+                {
+                    _managedLines = lines;
+                    Settings.SetCachedManagedLines(lines);
+                    _managedLinesLoaded = true;
+                    RegenerateContent();
+                    Repaint();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[BeamFlow] Failed to refresh managed lines: {e.Message}");
             }
         }
 
@@ -85,7 +106,7 @@ namespace BeamFlow.AppAdsTxt
             }
 
             // Load main publisher ID for AdMob
-            if (string.IsNullOrEmpty(_networkPubIds.GetValueOrDefault("admob")))
+            if (string.IsNullOrEmpty(_networkPubIds.GetOrDefault("admob")))
                 _networkPubIds["admob"] = Settings.PublisherId;
 
             RegenerateContent();
@@ -164,7 +185,7 @@ namespace BeamFlow.AppAdsTxt
             {
                 EditorGUILayout.BeginHorizontal();
 
-                var wasEnabled = _enabledNetworks.GetValueOrDefault(sdk.Id, false);
+                var wasEnabled = _enabledNetworks.GetOrDefault(sdk.Id, false);
                 var isEnabled = EditorGUILayout.ToggleLeft(
                     sdk.DisplayName,
                     wasEnabled,
@@ -208,12 +229,13 @@ namespace BeamFlow.AppAdsTxt
                 MessageType.Info);
 
             // AdMob publisher ID (always shown first if enabled)
-            if (_enabledNetworks.GetValueOrDefault("admob", false))
+            if (_enabledNetworks.GetOrDefault("admob", false))
             {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("Google AdMob:", GUILayout.Width(150));
-                var admobId = EditorGUILayout.TextField(_networkPubIds.GetValueOrDefault("admob", ""));
-                if (admobId != _networkPubIds.GetValueOrDefault("admob", ""))
+                var current = _networkPubIds.GetOrDefault("admob", "");
+                var admobId = EditorGUILayout.TextField(current);
+                if (admobId != current)
                 {
                     _networkPubIds["admob"] = admobId;
                     Settings.PublisherId = admobId;
@@ -221,22 +243,46 @@ namespace BeamFlow.AppAdsTxt
                     RegenerateContent();
                 }
                 EditorGUILayout.EndHorizontal();
+
+                // Validate AdMob publisher ID format
+                var trimmedAdmob = (admobId ?? "").Trim();
+                if (!string.IsNullOrEmpty(trimmedAdmob) && !BeamFlowApi.IsValidAdMobPublisherId(trimmedAdmob))
+                {
+                    EditorGUILayout.HelpBox(
+                        "Invalid AdMob Publisher ID format. Expected: pub-XXXXXXXXXXXXXXXX (16 digits).",
+                        MessageType.Warning);
+                }
             }
 
-            // Show other networks that need publisher IDs in advanced section
-            _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, "Other Network Publisher IDs (optional)");
+            // Auto-expand the advanced section if any enabled network is missing its publisher ID
+            var missingIds = _enabledNetworks
+                .Where(kv => kv.Value && kv.Key != "admob" && NetworkTemplates.RequiresPublisherId(kv.Key))
+                .Where(kv => string.IsNullOrWhiteSpace(_networkPubIds.GetOrDefault(kv.Key, "")))
+                .Select(kv => kv.Key)
+                .ToList();
+
+            if (missingIds.Count > 0 && !_showAdvanced)
+            {
+                _showAdvanced = true;
+                EditorGUILayout.HelpBox(
+                    $"{missingIds.Count} enabled network(s) need a publisher ID for direct monetization. Open the section below to enter them.",
+                    MessageType.Warning);
+            }
+
+            // Show other networks that need publisher IDs in expanded section
+            _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, "Publisher IDs per network (required for direct monetization)");
             if (_showAdvanced)
             {
                 EditorGUI.indentLevel++;
                 foreach (var sdk in _detectedSdks)
                 {
                     if (sdk.Id == "admob") continue; // Already shown above
-                    if (!_enabledNetworks.GetValueOrDefault(sdk.Id, false)) continue;
+                    if (!_enabledNetworks.GetOrDefault(sdk.Id, false)) continue;
 
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField($"{sdk.DisplayName}:", GUILayout.Width(150));
-                    var netId = EditorGUILayout.TextField(_networkPubIds.GetValueOrDefault(sdk.Id, ""));
-                    if (netId != _networkPubIds.GetValueOrDefault(sdk.Id, ""))
+                    var netId = EditorGUILayout.TextField(_networkPubIds.GetOrDefault(sdk.Id, ""));
+                    if (netId != _networkPubIds.GetOrDefault(sdk.Id, ""))
                     {
                         _networkPubIds[sdk.Id] = netId;
                         Settings.SetNetworkPublisherId(sdk.Id, netId);
@@ -366,15 +412,27 @@ namespace BeamFlow.AppAdsTxt
             {
                 var defaultName = "app-ads.txt";
                 var lastPath = Settings.LastOutputPath;
-                var dir = string.IsNullOrEmpty(lastPath) ? Application.dataPath : Path.GetDirectoryName(lastPath);
+                // Default to the project's parent folder (not Assets/) so the file
+                // isn't accidentally committed into the game binary.
+                var dir = string.IsNullOrEmpty(lastPath)
+                    ? Path.Combine(Application.dataPath, "..")
+                    : Path.GetDirectoryName(lastPath);
 
                 var path = EditorUtility.SaveFilePanel("Save app-ads.txt", dir, defaultName, "txt");
                 if (!string.IsNullOrEmpty(path))
                 {
-                    File.WriteAllText(path, _generatedContent);
-                    Settings.LastOutputPath = path;
-                    _statusMessage = $"Saved to {path}";
-                    BeamFlowApi.SendTelemetry("file_saved", Settings.DeveloperWebsite);
+                    try
+                    {
+                        File.WriteAllText(path, _generatedContent);
+                        Settings.LastOutputPath = path;
+                        _statusMessage = $"Saved to {path}";
+                        BeamFlowApi.SendTelemetry("file_saved", Settings.DeveloperWebsite);
+                    }
+                    catch (System.Exception e)
+                    {
+                        _statusMessage = $"Could not save file: {e.Message}";
+                        Debug.LogError($"[BeamFlow] Save failed: {e}");
+                    }
                 }
             }
 
@@ -506,8 +564,17 @@ namespace BeamFlow.AppAdsTxt
             EditorGUILayout.LabelField("Developer Website:", GUILayout.Width(130));
             var newWebsite = EditorGUILayout.TextField(website);
             if (newWebsite != website)
-                Settings.DeveloperWebsite = newWebsite;
+                Settings.DeveloperWebsite = BeamFlowApi.NormalizeDomain(newWebsite);
             EditorGUILayout.EndHorizontal();
+
+            // Validate website format
+            var trimmedWebsite = (newWebsite ?? "").Trim();
+            if (!string.IsNullOrEmpty(trimmedWebsite) && !BeamFlowApi.IsValidDomain(BeamFlowApi.NormalizeDomain(trimmedWebsite)))
+            {
+                EditorGUILayout.HelpBox(
+                    "Invalid domain format. Enter a domain like example.com (no protocol, no path).",
+                    MessageType.Warning);
+            }
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("BeamFlow API Key:", GUILayout.Width(130));
@@ -518,7 +585,7 @@ namespace BeamFlow.AppAdsTxt
 
             EditorGUILayout.BeginHorizontal();
 
-            GUI.enabled = !_isVerifying && !string.IsNullOrEmpty(Settings.DeveloperWebsite);
+            GUI.enabled = !_isVerifying && BeamFlowApi.IsValidDomain(BeamFlowApi.NormalizeDomain(Settings.DeveloperWebsite));
             if (GUILayout.Button(_isVerifying ? "Verifying..." : "Verify on BeamFlow", GUILayout.Height(25)))
             {
                 RunVerification();
@@ -527,9 +594,9 @@ namespace BeamFlow.AppAdsTxt
 
             if (GUILayout.Button("Full Report on BeamFlow", GUILayout.Height(25)))
             {
-                var domain = Settings.DeveloperWebsite;
-                if (!string.IsNullOrEmpty(domain))
-                    Application.OpenURL($"https://beamflow.co/scan?domain={domain}&type=app_ads_txt");
+                var domain = BeamFlowApi.NormalizeDomain(Settings.DeveloperWebsite);
+                if (BeamFlowApi.IsValidDomain(domain))
+                    Application.OpenURL($"https://beamflow.co/scan?domain={System.Uri.EscapeDataString(domain)}&type=app_ads_txt");
                 else
                     Application.OpenURL("https://beamflow.co/scan");
             }
@@ -555,20 +622,36 @@ namespace BeamFlow.AppAdsTxt
 
         private async void RunVerification()
         {
-            _isVerifying = true;
-            _verificationResult = null;
-            Repaint();
+            try
+            {
+                _isVerifying = true;
+                _verificationResult = null;
+                Repaint();
 
-            _verificationResult = await BeamFlowApi.ScanDomain(
-                Settings.DeveloperWebsite,
-                Settings.ApiKey);
+                var result = await BeamFlowApi.ScanDomain(
+                    Settings.DeveloperWebsite,
+                    Settings.ApiKey);
 
-            _isVerifying = false;
+                // Window may have been closed during the await
+                if (this == null) return;
 
-            if (_verificationResult == null)
-                _statusMessage = "Could not reach BeamFlow API. Check your internet connection or try again later.";
+                _verificationResult = result;
+                _isVerifying = false;
 
-            Repaint();
+                if (_verificationResult == null)
+                    _statusMessage = "Could not reach BeamFlow API. Check your internet connection or try again later.";
+
+                Repaint();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[BeamFlow] Verification failed: {e.Message}");
+                if (this != null)
+                {
+                    _isVerifying = false;
+                    _statusMessage = "Verification failed. Please try again.";
+                }
+            }
         }
 
         private void DrawFooter()

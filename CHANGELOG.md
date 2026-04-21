@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.0.4] - 2026-04-21
+
+### Security fixes
+- Telemetry JSON now uses JsonUtility (prevents string injection)
+- Managed lines from API are validated against strict ads.txt grammar
+  regex and capped at 200 (prevents compromised API / MITM poisoning)
+- Developer Website input normalized and validated before use in URLs
+  (prevents javascript:/file: URL attacks via Application.OpenURL)
+- AdMob Publisher ID format validation (pub-XXXXXXXXXXXXXXXX)
+
+### Stability fixes
+- `if (this == null) return;` after every async await (prevents
+  MissingReferenceException when window is closed mid-request)
+- async void methods wrapped in try/catch (prevents editor crashes)
+- Replaced Dictionary.GetValueOrDefault with extension method
+  (Unity 2021.3 uses .NET Standard 2.0 which lacks that API)
+- SdkDetector now uses official UnityEditor.PackageManager.Client API
+  with manifest.json fallback (more robust than hand-rolled JSON parser)
+
+### UX fixes
+- Publisher ID section auto-expands when enabled networks are missing
+  IDs, with warning: direct monetization lines are silently skipped
+  without an ID (was misleadingly labeled "optional")
+- Save to File now defaults to project root, not Assets/ (prevents
+  accidental commit into game binary) + try/catch on file write
+- Security note added to Preferences panel about EditorPrefs storage
+
 ## [1.0.3] - 2026-04-21
 
 ### Added

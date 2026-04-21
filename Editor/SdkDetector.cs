@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.PackageManager;
+using UnityEditor.PackageManager.Requests;
 
 namespace BeamFlow.AppAdsTxt
 {
@@ -142,50 +144,61 @@ namespace BeamFlow.AppAdsTxt
         }
 
         /// <summary>
-        /// Get the list of installed UPM packages by reading Packages/manifest.json.
+        /// Get the list of installed UPM packages using the official Unity API.
+        /// Falls back to parsing manifest.json if the API is slow/unavailable.
         /// </summary>
         private static HashSet<string> GetUpmPackages()
         {
             var packages = new HashSet<string>();
-            var manifestPath = Path.Combine(Directory.GetCurrentDirectory(), "Packages", "manifest.json");
-
-            if (!File.Exists(manifestPath))
-                return packages;
 
             try
             {
+                var listRequest = Client.List(offlineMode: true, includeIndirectDependencies: false);
+                // Block briefly for the result (we're on the main thread in editor)
+                var timeout = DateTime.UtcNow.AddSeconds(3);
+                while (!listRequest.IsCompleted && DateTime.UtcNow < timeout)
+                {
+                    System.Threading.Thread.Sleep(50);
+                }
+
+                if (listRequest.IsCompleted && listRequest.Status == StatusCode.Success && listRequest.Result != null)
+                {
+                    foreach (var pkg in listRequest.Result)
+                    {
+                        if (!string.IsNullOrEmpty(pkg.name))
+                            packages.Add(pkg.name);
+                    }
+                    return packages;
+                }
+            }
+            catch
+            {
+                // Fall through to manifest parse
+            }
+
+            // Fallback: parse manifest.json directly
+            try
+            {
+                var manifestPath = Path.Combine(Directory.GetCurrentDirectory(), "Packages", "manifest.json");
+                if (!File.Exists(manifestPath)) return packages;
+
                 var json = File.ReadAllText(manifestPath);
-                // Simple parsing: find "dependencies": { "com.xxx": "..." } keys
                 var depsStart = json.IndexOf("\"dependencies\"", StringComparison.Ordinal);
                 if (depsStart < 0) return packages;
 
                 var braceStart = json.IndexOf('{', depsStart);
                 if (braceStart < 0) return packages;
 
-                var braceEnd = json.IndexOf('}', braceStart);
+                var braceEnd = FindMatchingBrace(json, braceStart);
                 if (braceEnd < 0) return packages;
 
-                var depsBlock = json.Substring(braceStart, braceEnd - braceStart + 1);
-                // Extract quoted keys
-                var pos = 0;
-                while (pos < depsBlock.Length)
+                var depsBlock = json.Substring(braceStart + 1, braceEnd - braceStart - 1);
+                // Match "com.xxx.yyy" keys (package names have dots)
+                var matches = System.Text.RegularExpressions.Regex.Matches(
+                    depsBlock, @"""([a-z][a-z0-9_\-]*(\.[a-z0-9_\-]+)+)""\s*:");
+                foreach (System.Text.RegularExpressions.Match m in matches)
                 {
-                    var quoteStart = depsBlock.IndexOf('"', pos);
-                    if (quoteStart < 0) break;
-                    var quoteEnd = depsBlock.IndexOf('"', quoteStart + 1);
-                    if (quoteEnd < 0) break;
-
-                    var key = depsBlock.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-                    if (key.Contains("."))
-                        packages.Add(key);
-
-                    // Skip to after the value
-                    pos = quoteEnd + 1;
-                    var nextQuote = depsBlock.IndexOf('"', pos);
-                    if (nextQuote >= 0)
-                        pos = depsBlock.IndexOf('"', nextQuote + 1) + 1;
-                    else
-                        break;
+                    packages.Add(m.Groups[1].Value);
                 }
             }
             catch
@@ -194,6 +207,27 @@ namespace BeamFlow.AppAdsTxt
             }
 
             return packages;
+        }
+
+        /// <summary>
+        /// Find the matching closing brace for an opening brace, handling nested braces.
+        /// </summary>
+        private static int FindMatchingBrace(string json, int openIdx)
+        {
+            int depth = 0;
+            bool inString = false;
+            bool escape = false;
+            for (int i = openIdx; i < json.Length; i++)
+            {
+                char c = json[i];
+                if (escape) { escape = false; continue; }
+                if (c == '\\' && inString) { escape = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+                if (inString) continue;
+                if (c == '{') depth++;
+                else if (c == '}') { depth--; if (depth == 0) return i; }
+            }
+            return -1;
         }
 
         private class SdkSignature
