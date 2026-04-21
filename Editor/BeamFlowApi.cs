@@ -13,7 +13,7 @@ namespace BeamFlow.AppAdsTxt
     /// </summary>
     public static class BeamFlowApi
     {
-        public const string PluginVersion = "1.0.4";
+        public const string PluginVersion = "1.0.5";
         private const string BaseUrl = "https://beamflow.co/api/v1";
         private const int TimeoutSeconds = 10;
         private const int MaxManagedLines = 200;
@@ -112,7 +112,7 @@ namespace BeamFlow.AppAdsTxt
         /// Send telemetry event (non-blocking, fire-and-forget).
         /// Uses JsonUtility for safe JSON serialization.
         /// </summary>
-        public static async void SendTelemetry(string eventType, string domain = "")
+        public static async void SendTelemetry(string eventType, string domain = "", string errorMessage = null)
         {
             try
             {
@@ -120,8 +120,10 @@ namespace BeamFlow.AppAdsTxt
                 {
                     eventType = eventType ?? "",
                     domain = NormalizeDomain(domain),
+                    platform = "unity",
                     plugin_version = PluginVersion,
-                    unity_version = Application.unityVersion
+                    unity_version = Application.unityVersion,
+                    error_message = errorMessage
                 };
                 // JsonUtility doesn't support renaming, so we manually rename 'eventType' to 'event'
                 var json = JsonUtility.ToJson(payload).Replace("\"eventType\":", "\"event\":");
@@ -176,8 +178,10 @@ namespace BeamFlow.AppAdsTxt
         {
             public string eventType;
             public string domain;
+            public string platform;
             public string plugin_version;
             public string unity_version;
+            public string error_message;
         }
 
         [Serializable]

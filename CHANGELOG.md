@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.5] - 2026-04-21
+
+### Added
+- Install tracking: one-time telemetry event fired on first load (per machine)
+  via `[InitializeOnLoad]`, tracked in EditorPrefs to avoid duplicate events
+- Error telemetry: unhandled exceptions in refresh/verify/save flows are
+  reported to BeamFlow for debugging (non-blocking)
+- Platform field in telemetry events (`platform: "unity"`) to distinguish
+  from WordPress plugin in analytics
+
 ## [1.0.4] - 2026-04-21
 
 ### Security fixes

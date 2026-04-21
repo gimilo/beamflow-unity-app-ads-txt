@@ -88,6 +88,7 @@ namespace BeamFlow.AppAdsTxt
             catch (System.Exception e)
             {
                 Debug.LogWarning($"[BeamFlow] Failed to refresh managed lines: {e.Message}");
+                BeamFlowApi.SendTelemetry("error", Settings.DeveloperWebsite, $"refresh_managed_lines: {e.Message}");
             }
         }
 
@@ -432,6 +433,7 @@ namespace BeamFlow.AppAdsTxt
                     {
                         _statusMessage = $"Could not save file: {e.Message}";
                         Debug.LogError($"[BeamFlow] Save failed: {e}");
+                        BeamFlowApi.SendTelemetry("error", Settings.DeveloperWebsite, $"save_file: {e.Message}");
                     }
                 }
             }
@@ -646,6 +648,7 @@ namespace BeamFlow.AppAdsTxt
             catch (System.Exception e)
             {
                 Debug.LogWarning($"[BeamFlow] Verification failed: {e.Message}");
+                BeamFlowApi.SendTelemetry("error", Settings.DeveloperWebsite, $"verification: {e.Message}");
                 if (this != null)
                 {
                     _isVerifying = false;
